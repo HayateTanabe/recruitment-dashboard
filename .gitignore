@@ -1,0 +1,7 @@
+*.csv
+*.xlsx
+generate_dashboard*.py
+start_dashboard.command
+.streamlit/credentials.toml
+.DS_Store
+__pycache__/
