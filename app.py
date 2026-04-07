@@ -82,6 +82,22 @@ st.markdown(f"""
         padding: 12px 16px; border-radius: 6px; margin: 6px 0;
         color: {TXT2}; font-size: 0.92rem;
     }}
+    .pdf-btn {{
+        display: inline-block; cursor: pointer;
+        background: {C700}; color: white; border: none; border-radius: 6px;
+        padding: 6px 16px; font-size: 0.85rem; font-weight: 500;
+    }}
+    .pdf-btn:hover {{ background: {C600}; }}
+
+    @media print {{
+        @page {{ size: A3 landscape; margin: 10mm; }}
+        body, .main, .block-container {{ background: #0E1117 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
+        [data-testid="stSidebar"], [data-testid="stHeader"], .pdf-btn,
+        [data-testid="stFileUploader"], footer {{ display: none !important; }}
+        .block-container {{ padding: 0 !important; max-width: 100% !important; }}
+        .section-header {{ break-before: auto; }}
+        div[data-testid="stMetric"] {{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
+    }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -579,8 +595,14 @@ def make_active_pipeline(df: pd.DataFrame) -> dict:
 # ---------------------------------------------------------------------------
 # Main App
 # ---------------------------------------------------------------------------
-st.markdown('<h1 style="font-weight:600;font-style:italic;letter-spacing:-0.5px;">Recruitment Analytics Dashboard</h1>',
-            unsafe_allow_html=True)
+_title_col, _btn_col = st.columns([4, 1])
+with _title_col:
+    st.markdown('<h1 style="font-weight:600;font-style:italic;letter-spacing:-0.5px;">Recruitment Analytics Dashboard</h1>',
+                unsafe_allow_html=True)
+with _btn_col:
+    st.markdown('<div style="padding-top:1.5rem;text-align:right;">'
+                '<button class="pdf-btn" onclick="window.print()">PDF Export</button></div>',
+                unsafe_allow_html=True)
 st.caption("Talentio エクスポートCSVをアップロードしてください")
 
 with st.sidebar:
