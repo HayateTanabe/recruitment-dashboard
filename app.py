@@ -578,13 +578,19 @@ def make_channel_scatter(ch_eff: pd.DataFrame) -> go.Figure:
         hovertemplate="%{text}<br>応募: %{x}名<br>通過率: %{y:.0f}%<extra></extra>",
     ))
 
+    fig.add_annotation(
+        xref="paper", yref="paper", x=0.5, y=-0.13,
+        text="← 応募数（量）→　　　　⬤小=通過少　⬤大=通過多",
+        showarrow=False, font=dict(size=10, color=TXT2),
+    )
+
     fig.update_layout(
         **CHART_LAYOUT,
         xaxis=dict(title=dict(text="応募数（量）", font=dict(color=TXT2)),
                    showgrid=True, gridcolor=GRID, tickfont=dict(color=TXT3)),
         yaxis=dict(title=dict(text="書類通過率（質）", font=dict(color=TXT2)),
                    showgrid=True, gridcolor=GRID, tickfont=dict(color=TXT3)),
-        margin=dict(l=10, r=10, t=10, b=10), height=400,
+        margin=dict(l=10, r=10, t=10, b=40), height=420,
     )
     return fig
 
@@ -823,10 +829,11 @@ if len(ch_eff) > 0 or len(agent_perf) > 0:
 
     if len(ch_eff) > 0:
         with col_ch:
-            st.markdown('<div class="section-header">■ チャネル効率マップ（量 × 質）</div>',
+            st.markdown('<div class="section-header">■ チャネル効率マップ — どの経路が量・質ともに優秀か？</div>',
                         unsafe_allow_html=True)
             st.plotly_chart(make_channel_scatter(ch_eff), use_container_width=True)
-            st.caption("横軸=応募数（量）、縦軸=書類通過率（質）、バブル大=通過人数多。点線=中央値。右上が最優良チャネル。")
+            st.caption("読み方: 横軸が応募の量、縦軸が書類通過率（質）。バブルが大きいほど書類通過の実人数が多い。"
+                       "点線は中央値で、右上にあるチャネルほど量・質ともに優良。書類通過以降は面接官・条件等の別要因が支配的なため、チャネル評価は書類通過率で見るのが一般的。")
 
     if len(agent_perf) > 0:
         with col_ag:
