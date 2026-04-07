@@ -25,52 +25,58 @@ TRANSITIONS = [
     ("内定→内定承諾", "内定", "内定承諾"),
 ]
 
-BLUE = "#4A9AF5"
-DARK = "#2563EB"
-GREEN = "#22C55E"
-RED = "#EF4444"
-AMBER = "#F59E0B"
-GRAY = "#6B7280"
-PURPLE = "#6366F1"
+B900 = "#0F2A4A"
+B700 = "#1E3A5F"
+B600 = "#1D4ED8"
+B500 = "#2563EB"
+B400 = "#3B82F6"
+B300 = "#60A5FA"
+B200 = "#93C5FD"
+B100 = "#BFDBFE"
+SLATE = "#64748B"
+SLATE_L = "#94A3B8"
 BG = "rgba(0,0,0,0)"
-GRID = "rgba(255,255,255,0.08)"
+GRID = "rgba(255,255,255,0.06)"
+
+FUNNEL_GRAD = [B500, B400, B300, B200, B100, "#DBEAFE"]
+DONUT_PAL = [B400, B700, SLATE, B200]
 
 CHART_LAYOUT = dict(
     plot_bgcolor=BG,
     paper_bgcolor=BG,
-    font=dict(color="#E5E7EB"),
+    font=dict(color="#CBD5E1"),
 )
 
 st.markdown("""
 <style>
     .block-container { padding-top: 1.5rem; }
     div[data-testid="stMetric"] {
-        background: linear-gradient(135deg, #2563EB 0%, #1E40AF 100%);
+        background: linear-gradient(135deg, #1E3A5F 0%, #0F2A4A 100%);
         padding: 16px 20px; border-radius: 10px; color: white;
     }
-    div[data-testid="stMetric"] label { color: rgba(255,255,255,0.8) !important; font-size: 0.85rem !important; }
+    div[data-testid="stMetric"] label { color: rgba(255,255,255,0.7) !important; font-size: 0.85rem !important; }
     div[data-testid="stMetric"] div[data-testid="stMetricValue"] { color: white !important; font-size: 1.8rem !important; }
-    div[data-testid="stMetric"] div[data-testid="stMetricDelta"] { color: rgba(255,255,255,0.7) !important; }
+    div[data-testid="stMetric"] div[data-testid="stMetricDelta"] { color: rgba(147,197,253,0.85) !important; }
     .section-header {
-        background: rgba(255,255,255,0.06); color: white;
+        background: rgba(30,58,95,0.35); color: #E2E8F0;
         padding: 8px 16px; border-radius: 6px; font-size: 1rem;
         font-weight: bold; margin: 1.5rem 0 0.8rem 0;
-        border-left: 4px solid #2563EB;
+        border-left: 4px solid #3B82F6;
     }
     .alert-danger {
-        background: rgba(239,68,68,0.15); border-left: 4px solid #EF4444;
+        background: rgba(30,58,95,0.30); border-left: 4px solid #93C5FD;
         padding: 12px 16px; border-radius: 6px; margin: 6px 0;
-        color: #FCA5A5; font-size: 0.92rem;
+        color: #E2E8F0; font-size: 0.92rem;
     }
     .alert-warning {
-        background: rgba(245,158,11,0.15); border-left: 4px solid #F59E0B;
+        background: rgba(30,58,95,0.25); border-left: 4px solid #60A5FA;
         padding: 12px 16px; border-radius: 6px; margin: 6px 0;
-        color: #FCD34D; font-size: 0.92rem;
+        color: #CBD5E1; font-size: 0.92rem;
     }
     .alert-info {
-        background: rgba(99,102,241,0.15); border-left: 4px solid #6366F1;
+        background: rgba(30,58,95,0.20); border-left: 4px solid #2563EB;
         padding: 12px 16px; border-radius: 6px; margin: 6px 0;
-        color: #A5B4FC; font-size: 0.92rem;
+        color: #94A3B8; font-size: 0.92rem;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -349,7 +355,7 @@ def detect_alerts(funnel: dict, lead_times: list, channel_eff: pd.DataFrame,
 # Charts
 # ---------------------------------------------------------------------------
 def make_funnel_chart(funnel, confirmed_mode=True):
-    """Single-trace horizontal bar funnel. confirmed_mode switches rate basis."""
+    """Single-trace horizontal bar funnel with blue gradient."""
     counts = funnel["counts"]
     trans = funnel["transitions"]
     total = counts["応募"]
@@ -365,17 +371,6 @@ def make_funnel_chart(funnel, confirmed_mode=True):
         else:
             conv_rates.append(values[i] / values[i - 1] * 100 if values[i - 1] else 0)
 
-    bar_colors = []
-    for i, cr in enumerate(conv_rates):
-        if i == 0:
-            bar_colors.append(BLUE)
-        elif cr >= 70:
-            bar_colors.append(GREEN)
-        elif cr >= 40:
-            bar_colors.append(BLUE)
-        else:
-            bar_colors.append(RED)
-
     bar_texts = []
     for i, (v, sr, cr) in enumerate(zip(values, survival, conv_rates)):
         if i == 0:
@@ -387,14 +382,14 @@ def make_funnel_chart(funnel, confirmed_mode=True):
 
     fig = go.Figure(go.Bar(
         y=STAGES, x=values, orientation="h",
-        marker_color=bar_colors, opacity=0.9,
+        marker_color=FUNNEL_GRAD[:len(STAGES)], opacity=0.85,
         text=bar_texts, textposition="outside",
-        textfont=dict(size=12, color="#E5E7EB"),
+        textfont=dict(size=12, color="#CBD5E1"),
     ))
 
     fig.update_layout(
         **CHART_LAYOUT,
-        yaxis=dict(autorange="reversed", tickfont=dict(size=12, color="#D1D5DB")),
+        yaxis=dict(autorange="reversed", tickfont=dict(size=12, color="#94A3B8")),
         xaxis=dict(showticklabels=False, showgrid=False),
         margin=dict(l=10, r=250, t=10, b=10),
         height=300, bargap=0.35,
@@ -418,16 +413,16 @@ def make_drop_donuts(funnel, confirmed_mode=True):
         t = trans[label]
         if confirmed_mode:
             segments = [
-                ("通過", t["passed"], GREEN),
-                ("お断り", t["rejected"], RED),
-                ("辞退", t["withdrew"], AMBER),
+                ("通過", t["passed"], B400),
+                ("お断り", t["rejected"], B700),
+                ("辞退", t["withdrew"], SLATE),
             ]
         else:
             segments = [
-                ("通過", t["passed"], GREEN),
-                ("お断り", t["rejected"], RED),
-                ("辞退", t["withdrew"], AMBER),
-                ("選考中", t["in_progress"], PURPLE),
+                ("通過", t["passed"], B400),
+                ("お断り", t["rejected"], B700),
+                ("辞退", t["withdrew"], SLATE),
+                ("選考中", t["in_progress"], B200),
             ]
         segments = [(nm, v, c) for nm, v, c in segments if v > 0]
         if not segments:
@@ -447,11 +442,11 @@ def make_drop_donuts(funnel, confirmed_mode=True):
         **CHART_LAYOUT,
         height=230,
         showlegend=True,
-        legend=dict(orientation="h", y=-0.05, x=0.15, font=dict(size=10, color="#D1D5DB")),
+        legend=dict(orientation="h", y=-0.05, x=0.15, font=dict(size=10, color=SLATE_L)),
         margin=dict(l=5, r=5, t=35, b=25),
     )
     for ann in fig.layout.annotations:
-        ann.font = dict(size=10, color="#D1D5DB")
+        ann.font = dict(size=10, color=SLATE_L)
 
     return fig
 
@@ -465,23 +460,23 @@ def make_lead_time_chart(lead_times: list) -> go.Figure:
     fig = go.Figure()
     fig.add_trace(go.Bar(
         y=labels, x=medians, orientation="h", name="中央値",
-        marker_color=BLUE, opacity=0.9,
+        marker_color=B400, opacity=0.85,
         text=[f" {v:.0f}日" for v in medians], textposition="outside",
-        textfont=dict(size=14, color="#93C5FD"),
+        textfont=dict(size=14, color=B200),
     ))
     fig.add_trace(go.Bar(
         y=labels, x=[p - m for p, m in zip(p75s, medians)], orientation="h",
-        name="75%ile", marker_color=AMBER, opacity=0.5, base=medians,
+        name="75%ile", marker_color=B200, opacity=0.4, base=medians,
         text=[f" {v:.0f}日" for v in p75s], textposition="outside",
-        textfont=dict(size=12, color="#FCD34D"),
+        textfont=dict(size=12, color=SLATE_L),
     ))
 
     fig.update_layout(
         **CHART_LAYOUT, barmode="stack",
-        yaxis=dict(autorange="reversed", tickfont=dict(size=12, color="#D1D5DB")),
-        xaxis=dict(title=dict(text="日数", font=dict(color="#9CA3AF")),
-                   showgrid=True, gridcolor=GRID, tickfont=dict(color="#9CA3AF")),
-        legend=dict(orientation="h", y=-0.2, x=0.2, font=dict(size=12, color="#D1D5DB")),
+        yaxis=dict(autorange="reversed", tickfont=dict(size=12, color=SLATE_L)),
+        xaxis=dict(title=dict(text="日数", font=dict(color=SLATE_L)),
+                   showgrid=True, gridcolor=GRID, tickfont=dict(color=SLATE)),
+        legend=dict(orientation="h", y=-0.2, x=0.2, font=dict(size=12, color=SLATE_L)),
         margin=dict(l=10, r=60, t=10, b=40), height=240,
     )
     return fig
@@ -492,29 +487,29 @@ def make_weekly_chart(weekly: pd.DataFrame) -> go.Figure:
 
     fig = go.Figure()
     fig.add_trace(go.Bar(
-        x=labels, y=weekly["応募"], name="応募数", marker_color=BLUE, opacity=0.7,
-        text=weekly["応募"], textposition="outside", textfont=dict(color="#93C5FD", size=13),
+        x=labels, y=weekly["応募"], name="応募数", marker_color=B400, opacity=0.7,
+        text=weekly["応募"], textposition="outside", textfont=dict(color=B200, size=13),
     ))
     fig.add_trace(go.Bar(
-        x=labels, y=weekly["書類通過"], name="書類通過", marker_color=GREEN, opacity=0.7,
+        x=labels, y=weekly["書類通過"], name="書類通過", marker_color=B200, opacity=0.6,
     ))
     fig.add_trace(go.Scatter(
         x=labels, y=weekly["書類通過率"], name="書類通過率(%)",
         yaxis="y2", mode="lines+markers+text",
-        line=dict(color=AMBER, width=2.5), marker=dict(size=8),
+        line=dict(color=SLATE_L, width=2), marker=dict(size=7, color=SLATE_L),
         text=[f"{v:.0f}%" for v in weekly["書類通過率"]], textposition="top center",
-        textfont=dict(color="#FCD34D", size=12),
+        textfont=dict(color=SLATE_L, size=11),
     ))
 
     fig.update_layout(
         **CHART_LAYOUT, barmode="group",
-        xaxis=dict(tickfont=dict(color="#D1D5DB")),
-        yaxis=dict(title=dict(text="人数", font=dict(color="#9CA3AF")),
-                   showgrid=True, gridcolor=GRID, tickfont=dict(color="#9CA3AF")),
-        yaxis2=dict(title=dict(text="書類通過率(%)", font=dict(color="#FCD34D")),
+        xaxis=dict(tickfont=dict(color=SLATE_L)),
+        yaxis=dict(title=dict(text="人数", font=dict(color=SLATE_L)),
+                   showgrid=True, gridcolor=GRID, tickfont=dict(color=SLATE)),
+        yaxis2=dict(title=dict(text="書類通過率(%)", font=dict(color=SLATE_L)),
                     overlaying="y", side="right", range=[0, 100], showgrid=False,
-                    tickfont=dict(color="#FCD34D")),
-        legend=dict(orientation="h", y=-0.2, x=0.15, font=dict(size=12, color="#D1D5DB")),
+                    tickfont=dict(color=SLATE_L)),
+        legend=dict(orientation="h", y=-0.2, x=0.15, font=dict(size=12, color=SLATE_L)),
         margin=dict(l=10, r=10, t=10, b=40), height=320,
     )
     return fig
@@ -525,24 +520,24 @@ def make_channel_scatter(ch_eff: pd.DataFrame) -> go.Figure:
     fig.add_trace(go.Scatter(
         x=ch_eff["応募数"], y=ch_eff["書類通過率"] * 100,
         mode="markers+text", text=ch_eff["チャネル"],
-        textposition="top center", textfont=dict(size=10, color="#D1D5DB"),
+        textposition="top center", textfont=dict(size=10, color=SLATE_L),
         marker=dict(
             size=ch_eff["書類通過"].clip(lower=3) * 2.5 + 8,
             color=ch_eff["書類通過率"] * 100,
-            colorscale=[[0, RED], [0.3, AMBER], [0.6, BLUE], [1.0, GREEN]],
+            colorscale=[[0, B900], [0.5, B400], [1.0, B100]],
             showscale=True, colorbar=dict(
-                title=dict(text="通過率%", font=dict(color="#9CA3AF")),
-                tickfont=dict(color="#9CA3AF")),
-            line=dict(width=1, color="rgba(255,255,255,0.3)"),
+                title=dict(text="通過率%", font=dict(color=SLATE)),
+                tickfont=dict(color=SLATE)),
+            line=dict(width=1, color="rgba(255,255,255,0.15)"),
         ),
     ))
 
     fig.update_layout(
         **CHART_LAYOUT,
-        xaxis=dict(title=dict(text="応募数", font=dict(color="#9CA3AF")),
-                   showgrid=True, gridcolor=GRID, tickfont=dict(color="#9CA3AF")),
-        yaxis=dict(title=dict(text="書類通過率 (%)", font=dict(color="#9CA3AF")),
-                   showgrid=True, gridcolor=GRID, tickfont=dict(color="#9CA3AF")),
+        xaxis=dict(title=dict(text="応募数", font=dict(color=SLATE_L)),
+                   showgrid=True, gridcolor=GRID, tickfont=dict(color=SLATE)),
+        yaxis=dict(title=dict(text="書類通過率 (%)", font=dict(color=SLATE_L)),
+                   showgrid=True, gridcolor=GRID, tickfont=dict(color=SLATE)),
         margin=dict(l=10, r=10, t=10, b=10), height=400,
     )
     return fig
@@ -554,18 +549,18 @@ def make_breakdown_chart(df: pd.DataFrame, group_col: str, top_n: int = 12) -> g
     ).sort_values("応募", ascending=False).head(top_n)
 
     fig = go.Figure()
-    for col_name, color in [("応募", BLUE), ("書類通過", DARK), ("内定承諾", GREEN)]:
+    for col_name, color in [("応募", B400), ("書類通過", B600), ("内定承諾", B200)]:
         fig.add_trace(go.Bar(
             y=grouped.index, x=grouped[col_name], orientation="h",
-            name=col_name, marker_color=color,
+            name=col_name, marker_color=color, opacity=0.85,
             text=grouped[col_name] if col_name == "応募" else None,
             textposition="auto", textfont=dict(color="white"),
         ))
     fig.update_layout(
         **CHART_LAYOUT, barmode="group",
-        yaxis=dict(autorange="reversed", tickfont=dict(size=11, color="#D1D5DB")),
-        xaxis=dict(showgrid=True, gridcolor=GRID, tickfont=dict(color="#9CA3AF")),
-        legend=dict(orientation="h", y=-0.15, x=0.15, font=dict(size=11, color="#D1D5DB")),
+        yaxis=dict(autorange="reversed", tickfont=dict(size=11, color=SLATE_L)),
+        xaxis=dict(showgrid=True, gridcolor=GRID, tickfont=dict(color=SLATE)),
+        legend=dict(orientation="h", y=-0.15, x=0.15, font=dict(size=11, color=SLATE_L)),
         margin=dict(l=10, r=20, t=10, b=40), height=max(280, top_n * 32),
     )
     return fig
@@ -682,7 +677,7 @@ if alerts:
 # =====================================================================
 st.markdown('<div class="section-header">■ ファネル分析 — どこで・なぜ落ちているか？</div>',
             unsafe_allow_html=True)
-st.caption("バーの色：🟢 移行率 70%以上 ／ 🔵 40%以上 ／ 🔴 40%未満")
+st.caption("左: 確定ベース（選考中を母数から除外した正味レート）　右: 全件ベース（選考中を含む）")
 
 col_conf, col_all = st.columns(2)
 
@@ -766,10 +761,10 @@ if any(v > 0 for v in pipeline.values()):
     st.markdown('<div class="section-header">■ アクティブパイプライン（現在 選考中）</div>',
                 unsafe_allow_html=True)
     pcols = st.columns(len(pipeline))
-    colors = [BLUE, DARK, BLUE, DARK, GREEN]
+    pipe_colors = [B500, B400, B300, B200, B100]
     for i, (stage, count) in enumerate(pipeline.items()):
         pcols[i].markdown(
-            f"""<div style="background:{colors[i]};color:white;border-radius:10px;
+            f"""<div style="background:{pipe_colors[i]};color:white;border-radius:10px;
             padding:12px;text-align:center;">
             <div style="font-size:0.8rem;opacity:0.8;">{stage}</div>
             <div style="font-size:2rem;font-weight:bold;">{count}</div>
