@@ -385,67 +385,62 @@ def make_funnel_chart(funnel, confirmed_mode=True):
         marker_color=FUNNEL_GRAD[:len(STAGES)], opacity=0.85,
         text=bar_texts, textposition="outside",
         textfont=dict(size=12, color="#CBD5E1"),
+        cliponaxis=False,
     ))
 
+    max_val = max(values) if values else 1
     fig.update_layout(
         **CHART_LAYOUT,
         yaxis=dict(autorange="reversed", tickfont=dict(size=12, color="#94A3B8")),
-        xaxis=dict(showticklabels=False, showgrid=False),
-        margin=dict(l=10, r=250, t=10, b=10),
+        xaxis=dict(showticklabels=False, showgrid=False, range=[0, max_val * 2.5]),
+        margin=dict(l=10, r=10, t=10, b=10),
         height=340, bargap=0.35,
     )
     return fig
 
 
-def make_drop_donuts(funnel, confirmed_mode=True):
-    """Vertical stack of donut charts showing drop-only composition (no '通過')."""
+def make_drop_bars(funnel, confirmed_mode=True):
+    """100% stacked horizontal bars showing drop/pass composition per transition."""
     trans = funnel["transitions"]
-    short = ["応募→書類", "書類→1次", "1次→2次", "2次→内定", "内定→承諾"]
-    n = len(TRANSITIONS)
+    y_labels = [t[0] for t in TRANSITIONS]
+    y_labels.reverse()
 
-    fig = make_subplots(
-        rows=n, cols=1,
-        specs=[[{"type": "pie"}]] * n,
-        subplot_titles=short,
-        vertical_spacing=0.06,
-    )
+    if confirmed_mode:
+        segs = [
+            ("お断り", "confirmed_reject_rate", B700),
+            ("辞退", "confirmed_withdraw_rate", SLATE),
+            ("通過", "confirmed_pass_rate", B100),
+        ]
+    else:
+        segs = [
+            ("お断り", "reject_rate", B700),
+            ("辞退", "withdraw_rate", SLATE),
+            ("選考中", "in_progress_rate", B200),
+            ("通過", "pass_rate", B100),
+        ]
 
-    for i, (label, _, _) in enumerate(TRANSITIONS):
-        t = trans[label]
-        if confirmed_mode:
-            segments = [
-                ("お断り", t["rejected"], B700),
-                ("辞退", t["withdrew"], SLATE),
-            ]
-        else:
-            segments = [
-                ("お断り", t["rejected"], B700),
-                ("辞退", t["withdrew"], SLATE),
-                ("選考中", t["in_progress"], B200),
-            ]
-        segments = [(nm, v, c) for nm, v, c in segments if v > 0]
-        if not segments:
-            continue
-        names, vals, colors = zip(*segments)
-
-        fig.add_trace(go.Pie(
-            values=vals, labels=names,
-            marker=dict(colors=colors),
-            hole=0.5, textinfo="label+percent",
-            textfont=dict(size=9, color="white"),
-            hovertemplate="%{label}: %{value}名 (%{percent})<extra></extra>",
-            sort=False,
-        ), row=i + 1, col=1)
+    fig = go.Figure()
+    for name, key, color in segs:
+        vals = [trans[t[0]][key] * 100 for t in TRANSITIONS]
+        vals.reverse()
+        is_pass = name == "通過"
+        fig.add_trace(go.Bar(
+            y=y_labels, x=vals, orientation="h", name=name,
+            marker_color=color, opacity=0.35 if is_pass else 0.85,
+            text=[f"{v:.0f}%" if v >= 8 else "" for v in vals],
+            textposition="inside",
+            textfont=dict(color="white" if not is_pass else SLATE, size=11),
+        ))
 
     fig.update_layout(
-        **CHART_LAYOUT,
-        height=340,
-        showlegend=False,
-        margin=dict(l=5, r=5, t=20, b=5),
+        **CHART_LAYOUT, barmode="stack",
+        yaxis=dict(tickfont=dict(size=10, color=SLATE_L)),
+        xaxis=dict(ticksuffix="%", range=[0, 105], showgrid=False,
+                   tickfont=dict(color=SLATE)),
+        legend=dict(orientation="h", y=-0.12, x=0, font=dict(size=10, color=SLATE_L)),
+        margin=dict(l=5, r=5, t=10, b=35),
+        height=340, bargap=0.3,
     )
-    for ann in fig.layout.annotations:
-        ann.font = dict(size=9, color=SLATE_L)
-
     return fig
 
 
@@ -679,8 +674,8 @@ col_f1, col_d1 = st.columns([1.3, 1])
 with col_f1:
     st.plotly_chart(make_funnel_chart(funnel, confirmed_mode=True), use_container_width=True)
 with col_d1:
-    st.caption("離脱内訳（drop理由）")
-    st.plotly_chart(make_drop_donuts(funnel, confirmed_mode=True), use_container_width=True)
+    st.caption("離脱内訳（drop率 100%積み上げ）")
+    st.plotly_chart(make_drop_bars(funnel, confirmed_mode=True), use_container_width=True)
 
 st.markdown('<div class="section-header">■ ファネル分析 — 全件ベース（選考中を含む）</div>',
             unsafe_allow_html=True)
@@ -688,8 +683,8 @@ col_f2, col_d2 = st.columns([1.3, 1])
 with col_f2:
     st.plotly_chart(make_funnel_chart(funnel, confirmed_mode=False), use_container_width=True)
 with col_d2:
-    st.caption("離脱内訳（drop理由）")
-    st.plotly_chart(make_drop_donuts(funnel, confirmed_mode=False), use_container_width=True)
+    st.caption("離脱内訳（drop率 100%積み上げ）")
+    st.plotly_chart(make_drop_bars(funnel, confirmed_mode=False), use_container_width=True)
 
 with st.expander("📊 転換率テーブル（詳細数値）"):
     trans_data = []
