@@ -287,18 +287,18 @@ def detect_alerts(funnel: dict, lead_times: list, channel_eff: pd.DataFrame,
     trans = funnel["transitions"]
 
     for label, t in trans.items():
-        if t["total_entered"] < 5:
+        if t["confirmed_total"] < 5:
             continue
-        if t["reject_rate"] > 0.40:
+        if t["confirmed_reject_rate"] > 0.40:
             alerts.append({
                 "level": "danger",
-                "text": f"🚨 {label}：お断り率が {t['reject_rate']:.0%}（{t['rejected']}名）。"
+                "text": f"🚨 {label}：お断り率が {t['confirmed_reject_rate']:.0%}（{t['rejected']}名 / 確定{t['confirmed_total']}名）。"
                         f"応募品質の見直し or 書類選考基準の再検討を推奨。",
             })
-        if t["withdraw_rate"] > 0.15:
+        if t["confirmed_withdraw_rate"] > 0.15:
             alerts.append({
                 "level": "warning",
-                "text": f"⚠️ {label}：辞退率が {t['withdraw_rate']:.0%}（{t['withdrew']}名）。"
+                "text": f"⚠️ {label}：辞退率が {t['confirmed_withdraw_rate']:.0%}（{t['withdrew']}名 / 確定{t['confirmed_total']}名）。"
                         f"候補者体験・選考スピードの改善を検討。",
             })
         if t["in_progress_rate"] > 0.20 and t["in_progress"] >= 5:
@@ -349,32 +349,21 @@ def detect_alerts(funnel: dict, lead_times: list, channel_eff: pd.DataFrame,
 # Charts
 # ---------------------------------------------------------------------------
 def make_funnel_chart(funnel, confirmed_mode=True):
-    """2-tone funnel: solid bar for confirmed arrivals, translucent extension for in-progress."""
+    """Single-trace horizontal bar funnel. confirmed_mode switches rate basis."""
     counts = funnel["counts"]
     trans = funnel["transitions"]
     total = counts["応募"]
     values = [counts[s] for s in STAGES]
 
-    in_progress_at = [0] * len(STAGES)
-    for i, (label, _, _) in enumerate(TRANSITIONS):
-        in_progress_at[i] = trans[label]["in_progress"]
+    survival = [v / total * 100 if total else 0 for v in values]
 
-    if confirmed_mode:
-        conv_rates = [100.0]
-        for i in range(1, len(values)):
-            label = TRANSITIONS[i - 1][0]
-            t = trans[label]
+    conv_rates = [100.0]
+    for i in range(1, len(values)):
+        t = trans[TRANSITIONS[i - 1][0]]
+        if confirmed_mode:
             conv_rates.append(t["confirmed_pass_rate"] * 100)
-        conf_total = total - in_progress_at[0]
-        survival = [100.0] + [
-            values[i] / conf_total * 100 if conf_total else 0
-            for i in range(1, len(values))
-        ]
-    else:
-        conv_rates = [100.0]
-        for i in range(1, len(values)):
+        else:
             conv_rates.append(values[i] / values[i - 1] * 100 if values[i - 1] else 0)
-        survival = [v / total * 100 if total else 0 for v in values]
 
     bar_colors = []
     for i, cr in enumerate(conv_rates):
@@ -389,47 +378,32 @@ def make_funnel_chart(funnel, confirmed_mode=True):
 
     bar_texts = []
     for i, (v, sr, cr) in enumerate(zip(values, survival, conv_rates)):
-        ip = in_progress_at[i] if i < len(TRANSITIONS) else 0
         if i == 0:
-            ip_note = f"  (+{ip}名 選考中)" if ip > 0 else ""
-            bar_texts.append(f"  {v:,}名（100%）{ip_note}")
+            bar_texts.append(f"  {v:,}名（100%）")
         else:
-            ip_note = f"  (+{ip}名 選考中)" if ip > 0 else ""
-            prefix = "確定" if confirmed_mode else ""
-            bar_texts.append(
-                f"  {v:,}名　残存 {sr:.1f}%　{prefix}移行率 {cr:.0f}%{ip_note}"
-            )
+            ip = trans[TRANSITIONS[i - 1][0]]["in_progress"] if not confirmed_mode else 0
+            ip_note = f"  ({ip}名 選考中)" if ip > 0 else ""
+            bar_texts.append(f"  {v:,}名  残存{sr:.1f}%  移行率{cr:.0f}%{ip_note}")
 
-    fig = go.Figure()
-
-    fig.add_trace(go.Bar(
-        y=STAGES, x=values, orientation="h", name="到達数",
+    fig = go.Figure(go.Bar(
+        y=STAGES, x=values, orientation="h",
         marker_color=bar_colors, opacity=0.9,
         text=bar_texts, textposition="outside",
-        textfont=dict(size=13, color="#E5E7EB"),
+        textfont=dict(size=12, color="#E5E7EB"),
     ))
 
-    ip_vals = [in_progress_at[i] if i < len(TRANSITIONS) else 0 for i in range(len(STAGES))]
-    if any(v > 0 for v in ip_vals):
-        fig.add_trace(go.Bar(
-            y=STAGES, x=ip_vals, orientation="h", name="選考中",
-            marker_color=PURPLE, opacity=0.35, base=values,
-            text=[""] * len(STAGES), textposition="none",
-        ))
-
     fig.update_layout(
-        **CHART_LAYOUT, barmode="overlay",
-        yaxis=dict(autorange="reversed", tickfont=dict(size=13, color="#D1D5DB")),
+        **CHART_LAYOUT,
+        yaxis=dict(autorange="reversed", tickfont=dict(size=12, color="#D1D5DB")),
         xaxis=dict(showticklabels=False, showgrid=False),
-        legend=dict(orientation="h", y=-0.05, x=0.1, font=dict(size=11, color="#D1D5DB")),
-        margin=dict(l=10, r=320, t=10, b=30),
-        height=350, bargap=0.35,
+        margin=dict(l=10, r=250, t=10, b=10),
+        height=300, bargap=0.35,
     )
     return fig
 
 
-def make_drop_donuts(funnel):
-    """Row of donut charts showing drop composition per transition."""
+def make_drop_donuts(funnel, confirmed_mode=True):
+    """Row of donut charts. confirmed_mode=True shows 3 categories, False shows 4."""
     trans = funnel["transitions"]
     short = ["応募→書類", "書類→1次", "1次→2次", "2次→内定", "内定→承諾"]
     n = len(TRANSITIONS)
@@ -442,12 +416,19 @@ def make_drop_donuts(funnel):
 
     for i, (label, _, _) in enumerate(TRANSITIONS):
         t = trans[label]
-        segments = [
-            ("通過", t["passed"], GREEN),
-            ("お断り", t["rejected"], RED),
-            ("辞退", t["withdrew"], AMBER),
-            ("選考中", t["in_progress"], PURPLE),
-        ]
+        if confirmed_mode:
+            segments = [
+                ("通過", t["passed"], GREEN),
+                ("お断り", t["rejected"], RED),
+                ("辞退", t["withdrew"], AMBER),
+            ]
+        else:
+            segments = [
+                ("通過", t["passed"], GREEN),
+                ("お断り", t["rejected"], RED),
+                ("辞退", t["withdrew"], AMBER),
+                ("選考中", t["in_progress"], PURPLE),
+            ]
         segments = [(nm, v, c) for nm, v, c in segments if v > 0]
         if not segments:
             continue
@@ -464,13 +445,13 @@ def make_drop_donuts(funnel):
 
     fig.update_layout(
         **CHART_LAYOUT,
-        height=260,
+        height=230,
         showlegend=True,
-        legend=dict(orientation="h", y=-0.05, x=0.2, font=dict(size=11, color="#D1D5DB")),
+        legend=dict(orientation="h", y=-0.05, x=0.15, font=dict(size=10, color="#D1D5DB")),
         margin=dict(l=5, r=5, t=35, b=25),
     )
     for ann in fig.layout.annotations:
-        ann.font = dict(size=11, color="#D1D5DB")
+        ann.font = dict(size=10, color="#D1D5DB")
 
     return fig
 
@@ -614,12 +595,6 @@ with st.sidebar:
     st.divider()
     st.header("🔍 フィルタ")
     view_mode = st.radio("表示粒度", ["全社", "部署別", "ポジション別", "応募経路別"], index=0)
-    rate_base = st.radio(
-        "移行率ベース",
-        ["確定ベース（推奨）", "全件ベース"],
-        index=0,
-        help="確定ベース＝選考中を母数から除外した正味レート。全件ベース＝選考中も母数に含めたレート。",
-    )
 
 if uploaded is None:
     st.info("👈 サイドバーからCSVファイルをアップロードしてください")
@@ -705,35 +680,36 @@ if alerts:
 # =====================================================================
 # SECTION 3: Funnel Analysis
 # =====================================================================
-is_confirmed = rate_base.startswith("確定")
 st.markdown('<div class="section-header">■ ファネル分析 — どこで・なぜ落ちているか？</div>',
             unsafe_allow_html=True)
-base_label = "確定ベース（選考中を母数から除外）" if is_confirmed else "全件ベース（選考中も母数に含む）"
-st.caption(f"バーの色：🟢 移行率 70%以上 ／ 🔵 40%以上 ／ 🔴 40%未満　｜　{base_label}")
-st.plotly_chart(make_funnel_chart(funnel, confirmed_mode=is_confirmed), use_container_width=True)
+st.caption("バーの色：🟢 移行率 70%以上 ／ 🔵 40%以上 ／ 🔴 40%未満")
 
-st.markdown('<div class="section-header">■ 離脱内訳（各ステージ間の drop 理由）</div>',
-            unsafe_allow_html=True)
-st.plotly_chart(make_drop_donuts(funnel), use_container_width=True)
+col_conf, col_all = st.columns(2)
+
+with col_conf:
+    st.markdown("**確定ベース**（選考中を母数から除外）")
+    st.plotly_chart(make_funnel_chart(funnel, confirmed_mode=True), use_container_width=True)
+    st.plotly_chart(make_drop_donuts(funnel, confirmed_mode=True), use_container_width=True)
+
+with col_all:
+    st.markdown("**全件ベース**（選考中も母数に含む）")
+    st.plotly_chart(make_funnel_chart(funnel, confirmed_mode=False), use_container_width=True)
+    st.plotly_chart(make_drop_donuts(funnel, confirmed_mode=False), use_container_width=True)
 
 with st.expander("📊 転換率テーブル（詳細数値）"):
     trans_data = []
     for label, _, _ in TRANSITIONS:
         t = funnel["transitions"][label]
-        row = {
+        trans_data.append({
             "区間": label,
-            "母数(全件)": t["total_entered"],
             "母数(確定)": t["confirmed_total"],
-            "通過": t["passed"],
-            "通過率(全件)": f"{t['pass_rate']:.1%}",
-            "通過率(確定)": f"{t['confirmed_pass_rate']:.1%}",
-            "お断り": t["rejected"],
-            "お断り率(確定)": f"{t['confirmed_reject_rate']:.1%}",
-            "辞退": t["withdrew"],
-            "辞退率(確定)": f"{t['confirmed_withdraw_rate']:.1%}",
+            "確定通過率": f"{t['confirmed_pass_rate']:.1%}",
+            "確定お断り率": f"{t['confirmed_reject_rate']:.1%}",
+            "確定辞退率": f"{t['confirmed_withdraw_rate']:.1%}",
+            "母数(全件)": t["total_entered"],
+            "全件通過率": f"{t['pass_rate']:.1%}",
             "選考中": t["in_progress"],
-        }
-        trans_data.append(row)
+        })
     st.dataframe(pd.DataFrame(trans_data).set_index("区間"),
                  use_container_width=True, height=220)
 
