@@ -467,11 +467,11 @@ def make_drop_bars(funnel, confirmed_mode=True):
         yaxis=dict(tickfont=dict(size=10, color=TXT2)),
         xaxis=dict(ticksuffix="%", range=[0, 105], showgrid=False,
                    tickfont=dict(color=TXT3)),
-        legend=dict(orientation="h", y=-0.12, x=0,
+        legend=dict(orientation="h", y=-0.18, x=0,
                     font=dict(size=10, color=TXT2),
                     traceorder="normal"),
-        margin=dict(l=5, r=5, t=10, b=35),
-        height=340, bargap=0.3,
+        margin=dict(l=5, r=5, t=10, b=45),
+        height=350, bargap=0.3,
     )
     return fig
 
@@ -501,8 +501,8 @@ def make_lead_time_chart(lead_times: list) -> go.Figure:
         yaxis=dict(autorange="reversed", tickfont=dict(size=12, color=TXT2)),
         xaxis=dict(title=dict(text="日数", font=dict(color=TXT2)),
                    showgrid=True, gridcolor=GRID, tickfont=dict(color=TXT3)),
-        legend=dict(orientation="h", y=-0.2, x=0.2, font=dict(size=12, color=TXT2)),
-        margin=dict(l=10, r=60, t=10, b=40), height=240,
+        legend=dict(orientation="h", y=-0.3, x=0.2, font=dict(size=11, color=TXT2)),
+        margin=dict(l=10, r=60, t=10, b=50), height=260,
     )
     return fig
 
@@ -534,8 +534,8 @@ def make_weekly_chart(weekly: pd.DataFrame) -> go.Figure:
         yaxis2=dict(title=dict(text="書類通過率(%)", font=dict(color=TXT2)),
                     overlaying="y", side="right", range=[0, 100], showgrid=False,
                     tickfont=dict(color=TXT2)),
-        legend=dict(orientation="h", y=-0.2, x=0.15, font=dict(size=12, color=TXT2)),
-        margin=dict(l=10, r=10, t=10, b=40), height=320,
+        legend=dict(orientation="h", y=-0.25, x=0.1, font=dict(size=11, color=TXT2)),
+        margin=dict(l=10, r=10, t=10, b=55), height=340,
     )
     return fig
 
@@ -578,19 +578,13 @@ def make_channel_scatter(ch_eff: pd.DataFrame) -> go.Figure:
         hovertemplate="%{text}<br>応募: %{x}名<br>通過率: %{y:.0f}%<extra></extra>",
     ))
 
-    fig.add_annotation(
-        xref="paper", yref="paper", x=0.5, y=-0.13,
-        text="⬤ バブル大 = 書類通過数が多い　⬤ バブル小 = 書類通過数が少ない",
-        showarrow=False, font=dict(size=10, color=TXT2),
-    )
-
     fig.update_layout(
         **CHART_LAYOUT,
-        xaxis=dict(title=dict(text="応募数（量）", font=dict(color=TXT2)),
+        xaxis=dict(title=dict(text="応募数（量）  ⬤大=通過数多  ⬤小=通過数少", font=dict(color=TXT2, size=11)),
                    showgrid=True, gridcolor=GRID, tickfont=dict(color=TXT3)),
         yaxis=dict(title=dict(text="書類通過率（質）", font=dict(color=TXT2)),
                    showgrid=True, gridcolor=GRID, tickfont=dict(color=TXT3)),
-        margin=dict(l=10, r=10, t=10, b=40), height=420,
+        margin=dict(l=10, r=10, t=10, b=10), height=400,
     )
     return fig
 
@@ -612,8 +606,8 @@ def make_breakdown_chart(df: pd.DataFrame, group_col: str, top_n: int = 12) -> g
         **CHART_LAYOUT, barmode="group",
         yaxis=dict(autorange="reversed", tickfont=dict(size=11, color=TXT2)),
         xaxis=dict(showgrid=True, gridcolor=GRID, tickfont=dict(color=TXT3)),
-        legend=dict(orientation="h", y=-0.15, x=0.15, font=dict(size=11, color=TXT2)),
-        margin=dict(l=10, r=20, t=10, b=40), height=max(280, top_n * 32),
+        legend=dict(orientation="h", y=-0.2, x=0.15, font=dict(size=11, color=TXT2)),
+        margin=dict(l=10, r=20, t=10, b=50), height=max(300, top_n * 32 + 20),
     )
     return fig
 
@@ -722,18 +716,14 @@ offer_count = funnel["counts"]["内定"]
 
 for i, stage in enumerate(STAGES):
     c = funnel["counts"][stage]
-    pct = c / app_count * 100 if app_count else 0
-    kpi_cols[i].metric(label=stage, value=f"{c:,}",
-                       delta=f"対応募 {pct:.1f}%" if i > 0 else f"{c:,}名")
+    kpi_cols[i].metric(label=stage, value=f"{c:,}")
 
 yield_val = app_count / hire_count if hire_count > 0 else float("inf")
 yield_display = f"{yield_val:.0f}:1" if yield_val != float("inf") else "—"
-kpi_cols[6].metric(label="採用効率", value=yield_display,
-                   delta="応募/内定承諾" if hire_count > 0 else "内定承諾0")
+kpi_cols[6].metric(label="採用効率", value=yield_display)
 
 offer_accept = hire_count / offer_count * 100 if offer_count > 0 else 0
-kpi_cols[7].metric(label="内定承諾率", value=f"{offer_accept:.0f}%",
-                   delta=f"{hire_count}/{offer_count}" if offer_count > 0 else "—")
+kpi_cols[7].metric(label="内定承諾率", value=f"{offer_accept:.0f}%")
 
 pipeline = make_active_pipeline(df_filtered)
 if any(v > 0 for v in pipeline.values()):
