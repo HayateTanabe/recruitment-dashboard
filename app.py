@@ -580,7 +580,7 @@ def make_channel_scatter(ch_eff: pd.DataFrame) -> go.Figure:
 
     fig.add_annotation(
         xref="paper", yref="paper", x=0.5, y=-0.13,
-        text="← 応募数（量）→　　　　⬤小=通過少　⬤大=通過多",
+        text="⬤ バブル大 = 書類通過数が多い　⬤ バブル小 = 書類通過数が少ない",
         showarrow=False, font=dict(size=10, color=TXT2),
     )
 
@@ -831,9 +831,11 @@ if len(ch_eff) > 0 or len(agent_perf) > 0:
         with col_ch:
             st.markdown('<div class="section-header">■ チャネル効率マップ — どの経路が量・質ともに優秀か？</div>',
                         unsafe_allow_html=True)
+            st.caption("横軸 = 応募数（量）、縦軸 = 書類通過率（質）、バブルの大きさ = 書類通過数。"
+                       "点線は中央値で、右上にあるチャネルほど量・質ともに優良。\n"
+                       "なぜ書類通過率か？ → 応募経路が影響するのは「どんな候補者が来るか」。"
+                       "その最初の品質ゲートが書類選考であり、1次面接以降は面接官・候補者相性・オファー条件など経路とは別の変数が支配的になるため。")
             st.plotly_chart(make_channel_scatter(ch_eff), use_container_width=True)
-            st.caption("読み方: 横軸が応募の量、縦軸が書類通過率（質）。バブルが大きいほど書類通過の実人数が多い。"
-                       "点線は中央値で、右上にあるチャネルほど量・質ともに優良。書類通過以降は面接官・条件等の別要因が支配的なため、チャネル評価は書類通過率で見るのが一般的。")
 
     if len(agent_perf) > 0:
         with col_ag:
