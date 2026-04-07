@@ -662,10 +662,11 @@ pipeline = make_active_pipeline(df_filtered)
 if any(v > 0 for v in pipeline.values()):
     st.caption("選考中パイプライン")
     pcols = st.columns(len(pipeline))
-    pipe_colors = [B500, B400, B300, B200, B100]
+    pipe_bg = [B500, B400, B300, B200, B100]
+    pipe_fg = ["white", "white", B900, B900, B900]
     for i, (stage, count) in enumerate(pipeline.items()):
         pcols[i].markdown(
-            f"""<div style="background:{pipe_colors[i]};color:white;border-radius:8px;
+            f"""<div style="background:{pipe_bg[i]};color:{pipe_fg[i]};border-radius:8px;
             padding:8px;text-align:center;">
             <div style="font-size:0.7rem;opacity:0.8;">{stage}</div>
             <div style="font-size:1.4rem;font-weight:bold;">{count}</div>
