@@ -91,9 +91,14 @@ st.markdown(f"""
             background: #0E1117 !important;
             -webkit-print-color-adjust: exact; print-color-adjust: exact;
         }}
-        [data-testid="stSidebar"], [data-testid="stHeader"], iframe,
+        [data-testid="stSidebar"], [data-testid="stHeader"],
         [data-testid="stFileUploader"], [data-testid="stToolbar"],
         footer, header {{ display: none !important; }}
+        iframe, [data-testid="stCustomComponentV1"] {{
+            display: none !important; visibility: hidden !important;
+            width: 0 !important; height: 0 !important;
+            overflow: hidden !important; position: absolute !important;
+        }}
         .block-container {{
             padding: 8px 20px !important; max-width: 100% !important;
             width: 100% !important; margin: 0 auto !important;
@@ -537,6 +542,28 @@ def make_weekly_chart(weekly: pd.DataFrame) -> go.Figure:
 
 def make_channel_scatter(ch_eff: pd.DataFrame) -> go.Figure:
     fig = go.Figure()
+
+    med_x = ch_eff["応募数"].median()
+    med_y = ch_eff["書類通過率"].median() * 100
+
+    fig.add_hline(y=med_y, line=dict(color=TXT3, width=1, dash="dot"))
+    fig.add_vline(x=med_x, line=dict(color=TXT3, width=1, dash="dot"))
+
+    quadrants = [
+        (0.02, 0.98, "質◎ 量△\n深掘り候補", TXT2),
+        (0.98, 0.98, "質◎ 量◎\n最優先投資", C300),
+        (0.02, 0.02, "質△ 量△\n見直し検討", TXT3),
+        (0.98, 0.02, "質△ 量◎\n要件すり合わせ", TXT2),
+    ]
+    for xr, yr, txt, col in quadrants:
+        fig.add_annotation(
+            xref="paper", yref="paper", x=xr, y=yr,
+            text=txt, showarrow=False, font=dict(size=10, color=col),
+            xanchor="left" if xr < 0.5 else "right",
+            yanchor="bottom" if yr < 0.5 else "top",
+            opacity=0.7,
+        )
+
     fig.add_trace(go.Scatter(
         x=ch_eff["応募数"], y=ch_eff["書類通過率"] * 100,
         mode="markers+text", text=ch_eff["チャネル"],
@@ -545,18 +572,17 @@ def make_channel_scatter(ch_eff: pd.DataFrame) -> go.Figure:
             size=ch_eff["書類通過"].clip(lower=3) * 2.5 + 8,
             color=ch_eff["書類通過率"] * 100,
             colorscale=[[0, C900], [0.5, C500], [1.0, C200]],
-            showscale=True, colorbar=dict(
-                title=dict(text="通過率%", font=dict(color=TXT3)),
-                tickfont=dict(color=TXT3)),
+            showscale=False,
             line=dict(width=1, color="rgba(255,255,255,0.15)"),
         ),
+        hovertemplate="%{text}<br>応募: %{x}名<br>通過率: %{y:.0f}%<extra></extra>",
     ))
 
     fig.update_layout(
         **CHART_LAYOUT,
-        xaxis=dict(title=dict(text="応募数", font=dict(color=TXT2)),
+        xaxis=dict(title=dict(text="応募数（量）", font=dict(color=TXT2)),
                    showgrid=True, gridcolor=GRID, tickfont=dict(color=TXT3)),
-        yaxis=dict(title=dict(text="書類通過率 (%)", font=dict(color=TXT2)),
+        yaxis=dict(title=dict(text="書類通過率（質）", font=dict(color=TXT2)),
                    showgrid=True, gridcolor=GRID, tickfont=dict(color=TXT3)),
         margin=dict(l=10, r=10, t=10, b=10), height=400,
     )
@@ -800,6 +826,7 @@ if len(ch_eff) > 0 or len(agent_perf) > 0:
             st.markdown('<div class="section-header">■ チャネル効率マップ（量 × 質）</div>',
                         unsafe_allow_html=True)
             st.plotly_chart(make_channel_scatter(ch_eff), use_container_width=True)
+            st.caption("横軸=応募数（量）、縦軸=書類通過率（質）、バブル大=通過人数多。点線=中央値。右上が最優良チャネル。")
 
     if len(agent_perf) > 0:
         with col_ag:
