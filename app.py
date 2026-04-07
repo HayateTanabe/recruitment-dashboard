@@ -84,12 +84,22 @@ st.markdown(f"""
         color: {TXT2}; font-size: 0.92rem;
     }}
     @media print {{
-        @page {{ size: A3 landscape; margin: 10mm; }}
-        body, .main, .block-container {{ background: #0E1117 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
+        @page {{ size: auto; margin: 5mm; }}
+        html, body {{ width: 100% !important; height: auto !important; overflow: visible !important; }}
+        body, .main, .block-container, [data-testid="stAppViewContainer"],
+        [data-testid="stMain"] {{
+            background: #0E1117 !important;
+            -webkit-print-color-adjust: exact; print-color-adjust: exact;
+        }}
         [data-testid="stSidebar"], [data-testid="stHeader"], iframe,
-        [data-testid="stFileUploader"], footer {{ display: none !important; }}
-        .block-container {{ padding: 0 !important; max-width: 100% !important; }}
-        .section-header {{ break-before: auto; }}
+        [data-testid="stFileUploader"], [data-testid="stToolbar"],
+        footer, header {{ display: none !important; }}
+        .block-container {{
+            padding: 0.5rem !important; max-width: 100% !important;
+            width: 100% !important; margin: 0 !important;
+        }}
+        * {{ break-inside: avoid; page-break-inside: avoid; }}
+        .section-header {{ break-before: auto; page-break-before: auto; }}
         div[data-testid="stMetric"] {{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
     }}
 </style>
