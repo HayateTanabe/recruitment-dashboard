@@ -84,7 +84,7 @@ st.markdown(f"""
         color: {TXT2}; font-size: 0.92rem;
     }}
     @media print {{
-        @page {{ size: auto; margin: 5mm; }}
+        @page {{ size: A3 portrait; margin: 8mm 12mm; }}
         html, body {{ width: 100% !important; height: auto !important; overflow: visible !important; }}
         body, .main, .block-container, [data-testid="stAppViewContainer"],
         [data-testid="stMain"] {{
@@ -95,8 +95,8 @@ st.markdown(f"""
         [data-testid="stFileUploader"], [data-testid="stToolbar"],
         footer, header {{ display: none !important; }}
         .block-container {{
-            padding: 0.5rem !important; max-width: 100% !important;
-            width: 100% !important; margin: 0 !important;
+            padding: 8px 20px !important; max-width: 100% !important;
+            width: 100% !important; margin: 0 auto !important;
         }}
         * {{ break-inside: avoid; page-break-inside: avoid; }}
         .section-header {{ break-before: auto; page-break-before: auto; }}
