@@ -400,39 +400,43 @@ def make_funnel_chart(funnel, confirmed_mode=True):
 
 
 def make_drop_bars(funnel, confirmed_mode=True):
-    """Stacked horizontal bars showing drop composition per transition (no '通過')."""
+    """100% stacked horizontal bars — drop reasons normalized to total drops."""
     trans = funnel["transitions"]
     y_labels = [t[0] for t in TRANSITIONS]
     y_labels.reverse()
 
     if confirmed_mode:
-        segs = [
-            ("お断り", "confirmed_reject_rate", B700),
-            ("辞退", "confirmed_withdraw_rate", SLATE),
-        ]
+        seg_keys = [("お断り", "rejected", B700), ("辞退", "withdrew", SLATE)]
     else:
-        segs = [
-            ("お断り", "reject_rate", B700),
-            ("辞退", "withdraw_rate", SLATE),
-            ("選考中", "in_progress_rate", B200),
-        ]
+        seg_keys = [("お断り", "rejected", B700), ("辞退", "withdrew", SLATE),
+                    ("選考中", "in_progress", B200)]
+
+    totals = []
+    for t_def in TRANSITIONS:
+        t = trans[t_def[0]]
+        totals.append(sum(t[k] for _, k, _ in seg_keys))
+    totals.reverse()
 
     fig = go.Figure()
-    for name, key, color in segs:
-        vals = [trans[t[0]][key] * 100 for t in TRANSITIONS]
-        vals.reverse()
+    for name, key, color in seg_keys:
+        raw = [trans[t_def[0]][key] for t_def in TRANSITIONS]
+        raw.reverse()
+        pcts = [v / tot * 100 if tot > 0 else 0 for v, tot in zip(raw, totals)]
+        texts = [f"{p:.0f}% ({v}名)" if p >= 12 else (f"{p:.0f}%" if p >= 5 else "")
+                 for p, v in zip(pcts, raw)]
         fig.add_trace(go.Bar(
-            y=y_labels, x=vals, orientation="h", name=name,
+            y=y_labels, x=pcts, orientation="h", name=name,
             marker_color=color, opacity=0.85,
-            text=[f"{v:.0f}%" if v >= 5 else "" for v in vals],
-            textposition="inside",
+            text=texts, textposition="inside",
             textfont=dict(color="white", size=11),
+            customdata=raw,
+            hovertemplate="%{y}<br>%{fullData.name}: %{customdata}名 (%{x:.0f}%)<extra></extra>",
         ))
 
     fig.update_layout(
         **CHART_LAYOUT, barmode="stack",
         yaxis=dict(tickfont=dict(size=10, color=SLATE_L)),
-        xaxis=dict(ticksuffix="%", showgrid=False,
+        xaxis=dict(ticksuffix="%", range=[0, 105], showgrid=False,
                    tickfont=dict(color=SLATE)),
         legend=dict(orientation="h", y=-0.12, x=0,
                     font=dict(size=10, color=SLATE_L),
@@ -654,6 +658,19 @@ offer_accept = hire_count / offer_count * 100 if offer_count > 0 else 0
 kpi_cols[7].metric(label="内定承諾率", value=f"{offer_accept:.0f}%",
                    delta=f"{hire_count}/{offer_count}" if offer_count > 0 else "—")
 
+pipeline = make_active_pipeline(df_filtered)
+if any(v > 0 for v in pipeline.values()):
+    st.caption("選考中パイプライン")
+    pcols = st.columns(len(pipeline))
+    pipe_colors = [B500, B400, B300, B200, B100]
+    for i, (stage, count) in enumerate(pipeline.items()):
+        pcols[i].markdown(
+            f"""<div style="background:{pipe_colors[i]};color:white;border-radius:8px;
+            padding:8px;text-align:center;">
+            <div style="font-size:0.7rem;opacity:0.8;">{stage}</div>
+            <div style="font-size:1.4rem;font-weight:bold;">{count}</div>
+            </div>""", unsafe_allow_html=True)
+
 # =====================================================================
 # SECTION 2: Bottleneck Alerts
 # =====================================================================
@@ -748,24 +765,7 @@ if len(ch_eff) > 0 or len(agent_perf) > 0:
                          height=min(500, len(disp) * 38 + 40))
 
 # =====================================================================
-# SECTION 6: Active Pipeline
-# =====================================================================
-pipeline = make_active_pipeline(df_filtered)
-if any(v > 0 for v in pipeline.values()):
-    st.markdown('<div class="section-header">■ アクティブパイプライン（現在 選考中）</div>',
-                unsafe_allow_html=True)
-    pcols = st.columns(len(pipeline))
-    pipe_colors = [B500, B400, B300, B200, B100]
-    for i, (stage, count) in enumerate(pipeline.items()):
-        pcols[i].markdown(
-            f"""<div style="background:{pipe_colors[i]};color:white;border-radius:10px;
-            padding:12px;text-align:center;">
-            <div style="font-size:0.8rem;opacity:0.8;">{stage}</div>
-            <div style="font-size:2rem;font-weight:bold;">{count}</div>
-            </div>""", unsafe_allow_html=True)
-
-# =====================================================================
-# SECTION 7: Breakdown
+# SECTION 6: Breakdown
 # =====================================================================
 if view_mode == "全社" or filter_value == "すべて":
     group_col = {
