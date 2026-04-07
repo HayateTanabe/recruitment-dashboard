@@ -6,6 +6,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from io import StringIO
 
 st.set_page_config(
@@ -342,85 +343,96 @@ def detect_alerts(funnel: dict, lead_times: list, channel_eff: pd.DataFrame,
 # ---------------------------------------------------------------------------
 # Charts
 # ---------------------------------------------------------------------------
-def make_waterfall_funnel(funnel: dict) -> go.Figure:
+def make_funnel_chart(funnel):
+    """Clean funnel: bars colored by conversion health, with survival & conversion rates."""
     counts = funnel["counts"]
-    trans = funnel["transitions"]
-    trans_labels = [t[0] for t in TRANSITIONS]
+    total = counts["応募"]
+    values = [counts[s] for s in STAGES]
 
-    y_labels, x_remain, x_reject, x_withdraw, x_progress = [], [], [], [], []
+    survival = [v / total * 100 if total else 0 for v in values]
+    conv_rates = [100.0]
+    for i in range(1, len(values)):
+        conv_rates.append(values[i] / values[i - 1] * 100 if values[i - 1] else 0)
 
-    for i, stage in enumerate(STAGES):
-        y_labels.append(f"◼ {stage}")
-        x_remain.append(counts[stage])
-        x_reject.append(None)
-        x_withdraw.append(None)
-        x_progress.append(None)
+    bar_colors = []
+    for i, cr in enumerate(conv_rates):
+        if i == 0:
+            bar_colors.append(BLUE)
+        elif cr >= 70:
+            bar_colors.append(GREEN)
+        elif cr >= 40:
+            bar_colors.append(BLUE)
+        else:
+            bar_colors.append(RED)
 
-        if i < len(trans_labels):
-            t = trans[trans_labels[i]]
-            for val, cat, x_list in [
-                (t["rejected"], "お断り", x_reject),
-                (t["withdrew"], "辞退", x_withdraw),
-                (t["in_progress"], "選考中", x_progress),
-            ]:
-                if val > 0:
-                    y_labels.append(f"    {cat}")
-                    x_remain.append(None)
-                    for xl in [x_reject, x_withdraw, x_progress]:
-                        xl.append(val if xl is x_list else None)
+    bar_texts = []
+    for i, (v, sr, cr) in enumerate(zip(values, survival, conv_rates)):
+        if i == 0:
+            bar_texts.append(f"  {v:,}名（100%）")
+        else:
+            bar_texts.append(f"  {v:,}名　残存 {sr:.1f}%　移行率 {cr:.0f}%")
 
-    fig = go.Figure()
-    for x_data, name, color, text_color in [
-        (x_remain, "到達数", BLUE, "#93C5FD"),
-        (x_reject, "お断り", RED, "#FCA5A5"),
-        (x_withdraw, "辞退", AMBER, "#FCD34D"),
-        (x_progress, "選考中", PURPLE, "#A5B4FC"),
-    ]:
-        fig.add_trace(go.Bar(
-            y=y_labels, x=x_data, orientation="h", name=name,
-            marker_color=color, opacity=0.9,
-            text=[f"  {v:,}" if v is not None and v > 0 else "" for v in x_data],
-            textposition="outside",
-            textfont=dict(size=13, color=text_color),
-        ))
+    fig = go.Figure(go.Bar(
+        y=STAGES, x=values, orientation="h",
+        marker_color=bar_colors, opacity=0.9,
+        text=bar_texts, textposition="outside",
+        textfont=dict(size=13, color="#E5E7EB"),
+    ))
 
     fig.update_layout(
-        **CHART_LAYOUT, barmode="stack",
-        yaxis=dict(autorange="reversed", tickfont=dict(size=12, color="#D1D5DB"), gridcolor=GRID),
+        **CHART_LAYOUT,
+        yaxis=dict(autorange="reversed", tickfont=dict(size=13, color="#D1D5DB")),
         xaxis=dict(showticklabels=False, showgrid=False),
-        legend=dict(orientation="h", y=-0.04, x=0.1, font=dict(size=12, color="#D1D5DB")),
-        margin=dict(l=10, r=80, t=10, b=30),
-        height=max(380, len(y_labels) * 34), bargap=0.3,
+        margin=dict(l=10, r=250, t=10, b=10),
+        height=340, bargap=0.35,
     )
     return fig
 
 
-def make_transition_chart(funnel: dict) -> go.Figure:
+def make_drop_donuts(funnel):
+    """Row of donut charts showing drop composition per transition."""
     trans = funnel["transitions"]
-    labels = [t[0] for t in TRANSITIONS]
+    short = ["応募→書類", "書類→1次", "1次→2次", "2次→内定", "内定→承諾"]
+    n = len(TRANSITIONS)
 
-    fig = go.Figure()
-    for key, name, color in [
-        ("pass_rate", "通過", BLUE),
-        ("reject_rate", "お断り", RED),
-        ("withdraw_rate", "辞退", AMBER),
-        ("in_progress_rate", "選考中", PURPLE),
-    ]:
-        vals = [trans[l][key] for l in labels]
-        fig.add_trace(go.Bar(
-            y=labels, x=vals, orientation="h", name=name, marker_color=color,
-            text=[f"{v:.0%}" if v >= 0.03 else "" for v in vals],
-            textposition="inside", textfont=dict(color="white", size=13),
-            opacity=0.8 if key == "in_progress_rate" else 1.0,
-        ))
+    fig = make_subplots(
+        rows=1, cols=n,
+        specs=[[{"type": "pie"}] * n],
+        subplot_titles=short,
+    )
+
+    for i, (label, _, _) in enumerate(TRANSITIONS):
+        t = trans[label]
+        segments = [
+            ("通過", t["passed"], GREEN),
+            ("お断り", t["rejected"], RED),
+            ("辞退", t["withdrew"], AMBER),
+            ("選考中", t["in_progress"], PURPLE),
+        ]
+        segments = [(nm, v, c) for nm, v, c in segments if v > 0]
+        if not segments:
+            continue
+        names, vals, colors = zip(*segments)
+
+        fig.add_trace(go.Pie(
+            values=vals, labels=names,
+            marker=dict(colors=colors),
+            hole=0.5, textinfo="percent",
+            textfont=dict(size=10, color="white"),
+            hovertemplate="%{label}: %{value}名 (%{percent})<extra></extra>",
+            sort=False,
+        ), row=1, col=i + 1)
 
     fig.update_layout(
-        **CHART_LAYOUT, barmode="stack",
-        yaxis=dict(autorange="reversed", tickfont=dict(size=12, color="#D1D5DB")),
-        xaxis=dict(tickformat=".0%", range=[0, 1.01], showgrid=False, tickfont=dict(color="#9CA3AF")),
-        legend=dict(orientation="h", y=-0.15, x=0.1, font=dict(size=12, color="#D1D5DB")),
-        margin=dict(l=10, r=20, t=10, b=40), height=280,
+        **CHART_LAYOUT,
+        height=260,
+        showlegend=True,
+        legend=dict(orientation="h", y=-0.05, x=0.2, font=dict(size=11, color="#D1D5DB")),
+        margin=dict(l=5, r=5, t=35, b=25),
     )
+    for ann in fig.layout.annotations:
+        ann.font = dict(size=11, color="#D1D5DB")
+
     return fig
 
 
@@ -648,23 +660,25 @@ if alerts:
 # =====================================================================
 # SECTION 3: Funnel Analysis
 # =====================================================================
-st.markdown('<div class="section-header">■ どこで・なぜ落ちているか？</div>',
+st.markdown('<div class="section-header">■ ファネル分析 — どこで・なぜ落ちているか？</div>',
             unsafe_allow_html=True)
+st.caption("バーの色：🟢 移行率 70%以上 ／ 🔵 40%以上 ／ 🔴 40%未満")
+st.plotly_chart(make_funnel_chart(funnel), use_container_width=True)
 
-col_wf, col_tr = st.columns([1.2, 1])
-with col_wf:
-    st.plotly_chart(make_waterfall_funnel(funnel), use_container_width=True)
-with col_tr:
-    st.plotly_chart(make_transition_chart(funnel), use_container_width=True)
+st.markdown('<div class="section-header">■ 離脱内訳（各ステージ間の drop 理由）</div>',
+            unsafe_allow_html=True)
+st.plotly_chart(make_drop_donuts(funnel), use_container_width=True)
+
+with st.expander("📊 転換率テーブル（詳細数値）"):
     trans_data = []
     for label, _, _ in TRANSITIONS:
         t = funnel["transitions"][label]
         trans_data.append({
             "区間": label, "母数": t["total_entered"],
-            "通過": t["passed"], "お断り": t["rejected"],
-            "辞退": t["withdrew"], "選考中": t["in_progress"],
-            "通過率": f"{t['pass_rate']:.1%}", "お断り率": f"{t['reject_rate']:.1%}",
-            "辞退率": f"{t['withdraw_rate']:.1%}",
+            "通過": t["passed"], "通過率": f"{t['pass_rate']:.1%}",
+            "お断り": t["rejected"], "お断り率": f"{t['reject_rate']:.1%}",
+            "辞退": t["withdrew"], "辞退率": f"{t['withdraw_rate']:.1%}",
+            "選考中": t["in_progress"], "選考中率": f"{t['in_progress_rate']:.1%}",
         })
     st.dataframe(pd.DataFrame(trans_data).set_index("区間"),
                  use_container_width=True, height=220)
