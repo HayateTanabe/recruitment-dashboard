@@ -10,7 +10,7 @@ from plotly.subplots import make_subplots
 from io import StringIO
 
 st.set_page_config(
-    page_title="Recruitment Analytics",
+    page_title="Recruitment Analytics Dashboard",
     page_icon="H",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -579,7 +579,7 @@ def make_active_pipeline(df: pd.DataFrame) -> dict:
 # ---------------------------------------------------------------------------
 # Main App
 # ---------------------------------------------------------------------------
-st.markdown('<h1 style="font-weight:600;letter-spacing:-0.5px;">Recruitment Analytics</h1>',
+st.markdown('<h1 style="font-weight:600;font-style:italic;letter-spacing:-0.5px;">Recruitment Analytics Dashboard</h1>',
             unsafe_allow_html=True)
 st.caption("Talentio エクスポートCSVをアップロードしてください")
 
@@ -587,7 +587,6 @@ with st.sidebar:
     st.header("📁 データアップロード")
     uploaded = st.file_uploader("CSVファイルを選択", type=["csv"],
                                 help="Talentioの「候補者一覧」からエクスポートしたCSVファイル")
-    encoding = st.selectbox("文字コード", ["cp932", "utf-8", "shift_jis"], index=0)
     st.divider()
     st.header("🔍 フィルタ")
     view_mode = st.radio("表示粒度", ["全社", "部署別", "ポジション別", "応募経路別"], index=0)
@@ -602,7 +601,17 @@ if uploaded is None:
     """)
     st.stop()
 
-df = load_and_process(uploaded.getvalue(), encoding)
+raw_bytes = uploaded.getvalue()
+for enc in ["utf-8", "cp932", "shift_jis"]:
+    try:
+        raw_bytes.decode(enc)
+        detected_enc = enc
+        break
+    except (UnicodeDecodeError, LookupError):
+        continue
+else:
+    detected_enc = "cp932"
+df = load_and_process(raw_bytes, detected_enc)
 
 filter_value = None
 if view_mode == "部署別":
