@@ -38,7 +38,7 @@ SLATE_L = "#94A3B8"
 BG = "rgba(0,0,0,0)"
 GRID = "rgba(255,255,255,0.06)"
 
-FUNNEL_GRAD = [B500, B400, B300, B200, B100, "#DBEAFE"]
+FUNNEL_GRAD = ["#DBEAFE", B100, B200, B300, B400, B500]
 DONUT_PAL = [B400, B700, SLATE, B200]
 
 CHART_LAYOUT = dict(
@@ -662,8 +662,8 @@ pipeline = make_active_pipeline(df_filtered)
 if any(v > 0 for v in pipeline.values()):
     st.caption("選考中パイプライン")
     pcols = st.columns(len(pipeline))
-    pipe_bg = [B500, B400, B300, B200, B100]
-    pipe_fg = ["white", "white", B900, B900, B900]
+    pipe_bg = [B100, B200, B300, B400, B500]
+    pipe_fg = [B900, B900, B900, "white", "white"]
     for i, (stage, count) in enumerate(pipeline.items()):
         pcols[i].markdown(
             f"""<div style="background:{pipe_bg[i]};color:{pipe_fg[i]};border-radius:8px;
