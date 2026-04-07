@@ -392,34 +392,33 @@ def make_funnel_chart(funnel, confirmed_mode=True):
         yaxis=dict(autorange="reversed", tickfont=dict(size=12, color="#94A3B8")),
         xaxis=dict(showticklabels=False, showgrid=False),
         margin=dict(l=10, r=250, t=10, b=10),
-        height=300, bargap=0.35,
+        height=340, bargap=0.35,
     )
     return fig
 
 
 def make_drop_donuts(funnel, confirmed_mode=True):
-    """Row of donut charts. confirmed_mode=True shows 3 categories, False shows 4."""
+    """Vertical stack of donut charts showing drop-only composition (no '通過')."""
     trans = funnel["transitions"]
     short = ["応募→書類", "書類→1次", "1次→2次", "2次→内定", "内定→承諾"]
     n = len(TRANSITIONS)
 
     fig = make_subplots(
-        rows=1, cols=n,
-        specs=[[{"type": "pie"}] * n],
+        rows=n, cols=1,
+        specs=[[{"type": "pie"}]] * n,
         subplot_titles=short,
+        vertical_spacing=0.06,
     )
 
     for i, (label, _, _) in enumerate(TRANSITIONS):
         t = trans[label]
         if confirmed_mode:
             segments = [
-                ("通過", t["passed"], B400),
                 ("お断り", t["rejected"], B700),
                 ("辞退", t["withdrew"], SLATE),
             ]
         else:
             segments = [
-                ("通過", t["passed"], B400),
                 ("お断り", t["rejected"], B700),
                 ("辞退", t["withdrew"], SLATE),
                 ("選考中", t["in_progress"], B200),
@@ -432,21 +431,20 @@ def make_drop_donuts(funnel, confirmed_mode=True):
         fig.add_trace(go.Pie(
             values=vals, labels=names,
             marker=dict(colors=colors),
-            hole=0.5, textinfo="percent",
-            textfont=dict(size=10, color="white"),
+            hole=0.5, textinfo="label+percent",
+            textfont=dict(size=9, color="white"),
             hovertemplate="%{label}: %{value}名 (%{percent})<extra></extra>",
             sort=False,
-        ), row=1, col=i + 1)
+        ), row=i + 1, col=1)
 
     fig.update_layout(
         **CHART_LAYOUT,
-        height=230,
-        showlegend=True,
-        legend=dict(orientation="h", y=-0.05, x=0.15, font=dict(size=10, color=SLATE_L)),
-        margin=dict(l=5, r=5, t=35, b=25),
+        height=340,
+        showlegend=False,
+        margin=dict(l=5, r=5, t=20, b=5),
     )
     for ann in fig.layout.annotations:
-        ann.font = dict(size=10, color=SLATE_L)
+        ann.font = dict(size=9, color=SLATE_L)
 
     return fig
 
@@ -675,20 +673,22 @@ if alerts:
 # =====================================================================
 # SECTION 3: Funnel Analysis
 # =====================================================================
-st.markdown('<div class="section-header">■ ファネル分析 — どこで・なぜ落ちているか？</div>',
+st.markdown('<div class="section-header">■ ファネル分析 — 確定ベース（選考中を母数から除外）</div>',
             unsafe_allow_html=True)
-st.caption("左: 確定ベース（選考中を母数から除外した正味レート）　右: 全件ベース（選考中を含む）")
-
-col_conf, col_all = st.columns(2)
-
-with col_conf:
-    st.markdown("**確定ベース**（選考中を母数から除外）")
+col_f1, col_d1 = st.columns([1.3, 1])
+with col_f1:
     st.plotly_chart(make_funnel_chart(funnel, confirmed_mode=True), use_container_width=True)
+with col_d1:
+    st.caption("離脱内訳（drop理由）")
     st.plotly_chart(make_drop_donuts(funnel, confirmed_mode=True), use_container_width=True)
 
-with col_all:
-    st.markdown("**全件ベース**（選考中も母数に含む）")
+st.markdown('<div class="section-header">■ ファネル分析 — 全件ベース（選考中を含む）</div>',
+            unsafe_allow_html=True)
+col_f2, col_d2 = st.columns([1.3, 1])
+with col_f2:
     st.plotly_chart(make_funnel_chart(funnel, confirmed_mode=False), use_container_width=True)
+with col_d2:
+    st.caption("離脱内訳（drop理由）")
     st.plotly_chart(make_drop_donuts(funnel, confirmed_mode=False), use_container_width=True)
 
 with st.expander("📊 転換率テーブル（詳細数値）"):
