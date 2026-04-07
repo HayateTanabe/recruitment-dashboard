@@ -10,7 +10,7 @@ from plotly.subplots import make_subplots
 from io import StringIO
 
 st.set_page_config(
-    page_title="Hiring Funnel",
+    page_title="Recruitment Analytics",
     page_icon="H",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -579,7 +579,7 @@ def make_active_pipeline(df: pd.DataFrame) -> dict:
 # ---------------------------------------------------------------------------
 # Main App
 # ---------------------------------------------------------------------------
-st.markdown('<h1 style="font-weight:600;letter-spacing:-0.5px;">Hiring Funnel Dashboard</h1>',
+st.markdown('<h1 style="font-weight:600;letter-spacing:-0.5px;">Recruitment Analytics</h1>',
             unsafe_allow_html=True)
 st.caption("Talentio エクスポートCSVをアップロードしてください")
 
